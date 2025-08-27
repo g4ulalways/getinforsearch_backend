@@ -14,25 +14,49 @@ const apiKeys = [
   process.env.PERPLEXITY_API_KEY_2,
 ].filter(Boolean)
 
-// Middleware
-app.use(cors())
+// CORS configuration to allow requests from your Hostinger frontend
+app.use(cors({
+  origin: [
+    'https://getinforsearch.com',
+    'https://www.getinforsearch.com',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}))
+
 app.use(express.json())
 
-// NOTE: The code for serving static files has been removed
-// because your frontend is hosted separately on Hostinger.
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    ok: true, 
+    time: new Date().toISOString(),
+    models: {
+      online: 'sonar-pro',
+      offline: 'sonar-reasoning'
+    }
+  })
+})
 
 // Helper: call Perplexity with failover across keys
 async function callPerplexity(prompt, useOnline = true) {
   const url = 'https://api.perplexity.ai/chat/completions'
-
-  // --- FIX: Using current, valid Perplexity model names ---
+  
+  // FIXED: Using current, valid Perplexity model names (August 2025)
   const model = useOnline
-    ? 'llama-3-sonar-large-32k-online' // For web-connected searches
-    : 'llama-3-70b-instruct';          // For general instruction-based tasks
+    ? 'sonar-pro'        // For web-connected searches (NEW)
+    : 'sonar-reasoning'  // For general instruction-based tasks (NEW)
+
+  if (apiKeys.length === 0) {
+    throw new Error('No API keys configured')
+  }
 
   for (let i = 0; i < apiKeys.length; i++) {
     const apiKey = apiKeys[i]
-    console.log(`[SERVER] Attempting request with API Key #${i+1}`)
+    console.log(`[SERVER] Attempting request with API Key #${i+1} using model: ${model}`)
 
     try {
       const resp = await axios.post(
@@ -58,28 +82,33 @@ async function callPerplexity(prompt, useOnline = true) {
     } catch (err) {
       const status = err.response ? err.response.status : 500
       const details = err.response ? err.response.data : { message: err.message }
-
+      
       if (status === 429) {
         console.warn(`[SERVER] API Key #${i+1} rate-limited/exhausted. Trying next key...`)
         continue
       }
-
+      
       console.error(`[SERVER] Error with API Key #${i+1}:`, JSON.stringify(details))
-      throw err
+      
+      // If this is the last key, throw the error
+      if (i === apiKeys.length - 1) {
+        throw err
+      }
     }
   }
-
+  
   throw new Error('All available API keys are exhausted or failed.')
 }
 
 // API route
 app.post('/api/search', async (req, res) => {
   const { prompt, online = true } = req.body || {}
-  console.log(`[SERVER] Received search request for prompt: "${prompt}"`)
+  console.log(`[SERVER] Received search request for prompt: "${prompt}" (online: ${online})`)
 
   if (!prompt || typeof prompt !== 'string') {
     return res.status(400).json({ error: 'Invalid prompt.' })
   }
+  
   if (apiKeys.length === 0) {
     console.error('[SERVER] No Perplexity API keys found in .env file.')
     return res.status(500).json({ error: 'No API keys configured.' })
@@ -98,8 +127,21 @@ app.post('/api/search', async (req, res) => {
   }
 })
 
-// NOTE: The SPA fallback route has been removed.
+// Simple 404 handler for undefined routes
+app.use('*', (req, res) => {
+  res.status(404).json({ error: 'Route not found' })
+})
+
+// Error handling
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[SERVER] Unhandled Rejection at:', promise, 'reason:', reason)
+})
+
+process.on('uncaughtException', (err) => {
+  console.error('[SERVER] Uncaught Exception:', err)
+})
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`)
+  console.log(`Health check available at: http://localhost:${PORT}/health`)
 })
