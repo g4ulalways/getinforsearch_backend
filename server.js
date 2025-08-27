@@ -18,17 +18,17 @@ const apiKeys = [
 app.use(cors())
 app.use(express.json())
 
-// Serve frontend out of public_html/
-app.use(express.static(path.join(__dirname, 'public_html')))
+// NOTE: The code for serving static files has been removed
+// because your frontend is hosted separately on Hostinger.
 
 // Helper: call Perplexity with failover across keys
 async function callPerplexity(prompt, useOnline = true) {
   const url = 'https://api.perplexity.ai/chat/completions'
 
-  // Use current valid Perplexity model names
+  // --- FIX: Using current, valid Perplexity model names ---
   const model = useOnline
-    ? 'sonar-pro'  // Pro model for web-search queries
-    : 'sonar'      // Basic Sonar model otherwise
+    ? 'llama-3-sonar-large-32k-online' // For web-connected searches
+    : 'llama-3-70b-instruct';          // For general instruction-based tasks
 
   for (let i = 0; i < apiKeys.length; i++) {
     const apiKey = apiKeys[i]
@@ -98,11 +98,8 @@ app.post('/api/search', async (req, res) => {
   }
 })
 
-// SPA fallback
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public_html', 'index.html'))
-})
+// NOTE: The SPA fallback route has been removed.
 
 app.listen(PORT, () => {
-  console.log(`Server is running. Open http://localhost:${PORT}`)
+  console.log(`Server is running on port ${PORT}`)
 })
