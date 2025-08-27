@@ -30,7 +30,8 @@ async function makeApiCallWithFailover(prompt) {
         try {
             const perplexityApiUrl = 'https://api.perplexity.ai/chat/completions';
             const response = await axios.post(perplexityApiUrl, {
-                model: 'llama-3-sonar-large-32k-chat',
+                // --- FINAL FIX: Corrected the model name ---
+                model: 'llama-3-sonar-large-32k-online',
                 messages: [
                     { role: 'system', content: 'Be precise and concise.' },
                     { role: 'user', content: prompt },
