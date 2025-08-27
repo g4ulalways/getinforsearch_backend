@@ -1,0 +1,258 @@
+/* --- Global Styles --- */
+body {
+    font-family: Arial, sans-serif;
+    background-color: white;
+    color: #202124;
+    display: flex;
+    flex-direction: column; /* Stack items vertically */
+    align-items: center; /* Center items horizontally */
+    margin: 0;
+    padding: 5vh 0; /* Add some space at the top and bottom */
+}
+
+/* --- Main Content Container --- */
+.container {
+    width: 80%;
+    max-width: 600px;
+    text-align: center;
+}
+
+/* --- Logo Styling --- */
+.logo {
+    width: 272px;
+    height: auto;
+    margin-bottom: 2rem;
+}
+
+/* --- Heading Style --- */
+h1 {
+    /* Hiding the h1 to better match the Google page, but keeping it for SEO */
+    font-size: 0;
+    margin: 0;
+    color: transparent;
+}
+
+/* --- Search Form Styling --- */
+#search-form {
+    display: flex;
+    margin: 0 auto 1.5rem;
+    max-width: 580px;
+    border: 1px solid #dfe1e5;
+    border-radius: 24px;
+    transition: box-shadow 0.2s ease;
+}
+
+#search-form:hover,
+#search-form:focus-within {
+    box-shadow: 0 1px 6px rgba(32,33,36,.28);
+    border-color: rgba(223,225,229,0);
+}
+
+#search-input {
+    flex-grow: 1;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 24px 0 0 24px;
+    font-size: 16px;
+    outline: none;
+    background-color: transparent;
+}
+
+/* --- Button Styling --- */
+button {
+    padding: 0 16px;
+    background-color: #f8f9fa;
+    color: #3c4043;
+    border: none;
+    border-left: 1px solid #dfe1e5;
+    border-radius: 0 24px 24px 0;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+    min-width: auto;
+    transition: box-shadow 0.2s ease;
+}
+
+button:hover {
+    box-shadow: 0 1px 1px rgba(0,0,0,.1);
+}
+
+/* --- DYNAMIC RESPONSE BOX (Updated Style) --- */
+#response-container {
+    background-color: #ffffff; /* Cleaner white background */
+    border: 1px solid #dfe1e5; /* A subtle border matching the search bar */
+    border-radius: 12px; /* Softer, more modern corners */
+    padding: 1.5rem;
+    color: #4d5156;
+    text-align: left;
+    min-height: 50px;
+    position: relative;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* A softer, more prominent shadow */
+    display: none; /* Hidden by default */
+    animation: fadeIn 0.5s ease-in-out; /* Fade-in animation */
+    margin-top: 1.5rem; /* Added space from the search bar */
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#response-text {
+    white-space: pre-wrap;
+    line-height: 1.6;
+    font-size: 18px; /* Increased font size */
+}
+
+/* --- Copy Button Style --- */
+#copy-button {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.3rem 0.8rem;
+    background-color: #e0e0e0;
+    color: #333;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+#copy-button:hover {
+    background-color: #d4d4d4;
+}
+
+/* --- Disclaimer Style --- */
+.disclaimer {
+    margin-top: 1.5rem;
+    font-size: 12px;
+    color: #888;
+    font-style: italic;
+    text-align: center;
+}
+
+/* --- Content Section Styles --- */
+.content-section {
+    width: 100%;
+    margin-top: 3rem;
+    padding: 2rem 0;
+    border-top: 1px solid #e4e4e4;
+}
+
+.side-by-side-container {
+    display: flex;
+    gap: 2rem;
+    width: 80%;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.info-column, .prompts-column {
+    flex: 1;
+    text-align: left;
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.content-section h2 {
+    font-size: 1.2rem;
+    color: #202124;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    margin-top: 0;
+}
+
+.content-section p, .content-section ul {
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.content-section ul {
+    list-style-type: '→';
+    padding-left: 20px;
+    margin-top: 0;
+}
+
+.content-section ul li {
+    padding-left: 10px;
+    margin-bottom: 0.5rem;
+}
+
+/* --- New Attractive Loading Spinner Style --- */
+#loading-indicator {
+    position: relative;
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    background-color: #3498db;
+    color: #3498db;
+    margin: 40px auto; /* Center the spinner */
+    animation: dot-flashing 1s infinite linear alternate;
+    animation-delay: .5s;
+}
+
+#loading-indicator::before, #loading-indicator::after {
+    content: '';
+    display: inline-block;
+    position: absolute;
+    top: 0;
+}
+
+#loading-indicator::before {
+    left: -15px;
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    background-color: #3498db;
+    color: #3498db;
+    animation: dot-flashing 1s infinite alternate;
+    animation-delay: 0s;
+}
+
+#loading-indicator::after {
+    left: 15px;
+    width: 10px;
+    height: 10px;
+    border-radius: 5px;
+    background-color: #3498db;
+    color: #3498db;
+    animation: dot-flashing 1s infinite alternate;
+    animation-delay: 1s;
+}
+
+@keyframes dot-flashing {
+    0% {
+        background-color: #3498db;
+    }
+    50%, 100% {
+        background-color: rgba(52, 152, 219, 0.2);
+    }
+}
+
+
+/* --- Footer and Mobile Styles --- */
+footer {
+    width: 100%;
+    text-align: center;
+    padding: 1.5rem 0;
+    margin-top: 3rem;
+    background-color: #f8f9fa;
+    border-top: 1px solid #e4e4e4;
+    font-size: 13px;
+    color: #5f6368;
+}
+
+@media (max-width: 768px) {
+    .container {
+        width: 90%;
+    }
+    .logo {
+        width: 200px;
+    }
+    .side-by-side-container {
+        flex-direction: column;
+    }
+}
