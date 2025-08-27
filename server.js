@@ -20,7 +20,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- NEW: Function to try making the API call with failover ---
+// --- Function to try making the API call with failover ---
 async function makeApiCallWithFailover(prompt) {
     // Loop through each key until one succeeds
     for (let i = 0; i < apiKeys.length; i++) {
@@ -30,8 +30,8 @@ async function makeApiCallWithFailover(prompt) {
         try {
             const perplexityApiUrl = 'https://api.perplexity.ai/chat/completions';
             const response = await axios.post(perplexityApiUrl, {
-                // --- FINAL FIX: Corrected the model name ---
-                model: 'llama-3-sonar-large-32k-online',
+                // --- FINAL FIX: Using a powerful and stable model ---
+                model: 'llama-3-70b-instruct',
                 messages: [
                     { role: 'system', content: 'Be precise and concise.' },
                     { role: 'user', content: prompt },
