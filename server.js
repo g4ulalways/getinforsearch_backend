@@ -1,5 +1,3 @@
-// server.js
-
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -21,13 +19,13 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Helper: call Perplexity with failover across keys
-async function callPerplexity(prompt, useOnline = false) {
+async function callPerplexity(prompt, useOnline = true) {
   const url = 'https://api.perplexity.ai/chat/completions';
-
-  // Choose a current, permitted model id
-  const model = useOnline
-    ? 'llama-3.1-sonar-large-128k-online'
-    : 'llama-3.1-sonar-large-128k-chat';
+  
+  // FIXED: Use NEW valid Perplexity model names (as of August 2025)
+  const model = useOnline 
+    ? 'sonar'        // NEW: Replaces llama-3.1-sonar-large-128k-online
+    : 'sonar-pro';   // NEW: For more complex queries
 
   for (let i = 0; i < apiKeys.length; i++) {
     const apiKey = apiKeys[i];
@@ -64,7 +62,6 @@ async function callPerplexity(prompt, useOnline = false) {
         continue;
       }
 
-      // For client errors like invalid_model, stop early to surface the issue
       console.error(`[SERVER] Error with API Key #${i + 1}:`, JSON.stringify(details));
       throw err;
     }
