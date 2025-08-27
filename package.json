@@ -1,7 +1,7 @@
 {
-  "name": "gemini-proxy-server",
+  "name": "ai-search-proxy-server",
   "version": "1.0.0",
-  "description": "Secure proxy for Gemini API",
+  "description": "Secure proxy for an AI search API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
