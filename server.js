@@ -1,4 +1,4 @@
-// FIXED-server.js - Corrected Perplexity model names for 2025
+// COMPLETELY-FIXED-server.js - Proper routing and error handling
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -15,20 +15,26 @@ const apiKeys = [
 ].filter(Boolean);
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'HEAD', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Accept', 'Authorization']
+}));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
 
 console.log('🚀 GetInForSearch backend starting...');
 console.log('📡 API Keys configured:', apiKeys.length);
+console.log('🌐 CORS enabled for all origins');
 
-// Helper: call Perplexity with correct model names (2025)
+// Helper: call Perplexity with current valid models
 async function callPerplexity(prompt, useOnline = true) {
   const url = 'https://api.perplexity.ai/chat/completions';
   
-  // ✅ UPDATED: Using current valid Perplexity model names (2025)
+  // ✅ Using current valid Perplexity model names (August 2025)
   const model = useOnline 
-    ? 'sonar'           // ✅ Current online search model
-    : 'r1-1776';        // ✅ Current offline chat model
+    ? 'llama-3.1-sonar-large-128k-online'    // ✅ Current valid online model
+    : 'llama-3.1-8b-instruct';               // ✅ Current valid offline model
 
   console.log(`🤖 Using model: ${model} (online: ${useOnline})`);
   
@@ -44,7 +50,8 @@ async function callPerplexity(prompt, useOnline = true) {
           { role: 'user', content: prompt },
         ],
         max_tokens: 4000,
-        temperature: 0.2
+        temperature: 0.2,
+        stream: false
       };
 
       console.log('📤 Request payload:', JSON.stringify(requestData, null, 2));
@@ -76,96 +83,191 @@ async function callPerplexity(prompt, useOnline = true) {
         continue;
       }
       
-      // If it's not a rate limit, log the error but continue to next key
-      console.error(`[SERVER] Non-rate-limit error with API Key #${i+1}, continuing...`);
+      // Continue to next key for other errors too
+      console.error(`[SERVER] Error with API Key #${i+1}, trying next...`);
     }
   }
 
   throw new Error('All available API keys failed or are exhausted.');
 }
 
-// Health check endpoint
+// ✅ FIXED: Root endpoint
+app.get('/', (req, res) => {
+  console.log('📍 Root endpoint accessed');
+  res.json({
+    message: 'GetInForSearch Backend API',
+    version: '1.2.0-completely-fixed',
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/api/health',
+      search: '/api/search (POST)',
+      'search-head': '/api/search (HEAD)'
+    },
+    models: {
+      online: 'llama-3.1-sonar-large-128k-online',
+      offline: 'llama-3.1-8b-instruct'
+    }
+  });
+});
+
+// ✅ FIXED: Health check endpoint
 app.get('/api/health', (req, res) => {
+  console.log('🏥 Health check accessed');
   res.json({ 
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    version: '1.1.0-fixed-models',
+    version: '1.2.0-completely-fixed',
     availableKeys: apiKeys.length,
     models: {
-      online: 'sonar',
-      offline: 'r1-1776'
-    }
+      online: 'llama-3.1-sonar-large-128k-online',
+      offline: 'llama-3.1-8b-instruct'
+    },
+    uptime: process.uptime(),
+    memory: process.memoryUsage()
   });
 });
 
-// API route - handles both old and new request formats
+// ✅ FIXED: Handle HEAD request to search endpoint
+app.head('/api/search', (req, res) => {
+  console.log('👤 HEAD request to /api/search');
+  res.status(200).end();
+});
+
+// ✅ FIXED: Main search endpoint with better error handling
 app.post('/api/search', async (req, res) => {
+  const startTime = Date.now();
+  console.log(`🔍 [SERVER] Search request received at ${new Date().toISOString()}`);
+  console.log(`📝 [SERVER] Request body:`, JSON.stringify(req.body, null, 2));
+  console.log(`📋 [SERVER] Request headers:`, req.headers);
+  
   const { prompt, online = true } = req.body || {};
   
-  console.log(`[SERVER] Received search request for prompt: "${prompt}"`);
-  console.log(`[SERVER] Request body:`, JSON.stringify(req.body, null, 2));
+  // Enhanced validation
+  if (!prompt) {
+    console.error('❌ [SERVER] Missing prompt in request body');
+    return res.status(400).json({ 
+      error: 'Missing prompt',
+      details: 'Request body must include a "prompt" field',
+      received: req.body
+    });
+  }
   
-  if (!prompt || typeof prompt !== 'string') {
-    console.error('[SERVER] Invalid prompt:', prompt);
-    return res.status(400).json({ error: 'Invalid prompt. Must be a non-empty string.' });
+  if (typeof prompt !== 'string') {
+    console.error('❌ [SERVER] Invalid prompt type:', typeof prompt);
+    return res.status(400).json({ 
+      error: 'Invalid prompt type',
+      details: 'Prompt must be a string',
+      received: { prompt, type: typeof prompt }
+    });
+  }
+  
+  if (prompt.trim().length === 0) {
+    console.error('❌ [SERVER] Empty prompt');
+    return res.status(400).json({ 
+      error: 'Empty prompt',
+      details: 'Prompt cannot be empty or only whitespace'
+    });
   }
 
   if (apiKeys.length === 0) {
-    console.error('[SERVER] No Perplexity API keys found in environment variables.');
-    return res.status(500).json({ error: 'No API keys configured.' });
+    console.error('❌ [SERVER] No API keys configured');
+    return res.status(500).json({ 
+      error: 'No API keys configured',
+      details: 'Server is missing Perplexity API keys'
+    });
   }
 
   try {
-    console.log(`[SERVER] Calling Perplexity API (online: ${online})...`);
+    console.log(`🚀 [SERVER] Processing search: "${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}"`);
     const data = await callPerplexity(prompt, online);
+    const responseTime = Date.now() - startTime;
     
-    console.log(`✅ [SERVER] Successfully processed search request`);
-    return res.json(data);
+    console.log(`✅ [SERVER] Search completed successfully in ${responseTime}ms`);
+    
+    // Add response metadata
+    const responseWithMeta = {
+      ...data,
+      metadata: {
+        responseTime,
+        timestamp: new Date().toISOString(),
+        model: online ? 'llama-3.1-sonar-large-128k-online' : 'llama-3.1-8b-instruct',
+        online
+      }
+    };
+    
+    return res.json(responseWithMeta);
 
   } catch (error) {
+    const responseTime = Date.now() - startTime;
+    console.error(`❌ [SERVER] Search failed after ${responseTime}ms:`, error.message);
+    
     const statusCode = error.response ? error.response.status : 502;
-    const errorMessage = error.response ? error.response.data : { message: error.message };
+    const errorDetails = error.response ? error.response.data : { message: error.message };
     
-    console.error('[SERVER] Final Error Details:', JSON.stringify(errorMessage, null, 2));
-    
-    return res
-      .status(statusCode)
-      .json({ 
-        error: 'Failed to fetch from Perplexity API.', 
-        details: errorMessage,
-        hint: 'Check API keys and model availability'
-      });
+    return res.status(statusCode).json({ 
+      error: 'Search failed',
+      details: errorDetails,
+      responseTime,
+      timestamp: new Date().toISOString(),
+      hint: 'Check API keys and Perplexity service status'
+    });
   }
 });
 
-// Root endpoint
-app.get('/', (req, res) => {
-  res.json({
-    message: 'GetInForSearch Backend API',
-    version: '1.1.0-fixed-models',
-    status: 'running',
-    endpoints: {
-      health: '/api/health',
-      search: '/api/search'
-    },
-    models: {
-      online: 'sonar (128k context)',
-      offline: 'r1-1776 (128k context)'
-    }
+// ✅ FIXED: Handle OPTIONS preflight requests
+app.options('*', (req, res) => {
+  console.log('⚙️ OPTIONS request:', req.path);
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,HEAD,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Accept,Authorization');
+  res.status(200).end();
+});
+
+// ✅ FIXED: Catch-all route for debugging
+app.all('*', (req, res) => {
+  console.log(`❓ [SERVER] Unhandled route: ${req.method} ${req.path}`);
+  res.status(404).json({
+    error: 'Route not found',
+    method: req.method,
+    path: req.path,
+    availableRoutes: [
+      'GET /',
+      'GET /api/health', 
+      'POST /api/search',
+      'HEAD /api/search'
+    ]
   });
 });
 
-// Error handling middleware
+// Enhanced error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error' });
+  console.error('💥 Unhandled error:', err);
+  res.status(500).json({ 
+    error: 'Internal server error',
+    details: err.message,
+    timestamp: new Date().toISOString()
+  });
 });
 
+// Start server
 app.listen(PORT, () => {
   console.log(`✅ Server is running on port ${PORT}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
   console.log(`🔍 Search endpoint: http://localhost:${PORT}/api/search`);
   console.log(`📋 Available API keys: ${apiKeys.length}`);
+  console.log(`🕐 Server started at: ${new Date().toISOString()}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received, shutting down gracefully...');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('🛑 SIGINT received, shutting down gracefully...');
+  process.exit(0);
 });
 
 module.exports = app;
