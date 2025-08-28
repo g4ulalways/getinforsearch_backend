@@ -1,4 +1,4 @@
-// BULLETPROOF-server.js - Hardcore debugging and bulletproof API handling
+// FINAL-BULLETPROOF-server.js - Uses ACTUAL current Perplexity model names
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -23,26 +23,29 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-console.log('🔥 BULLETPROOF GetInForSearch backend starting...');
+console.log('🔥 FINAL BULLETPROOF GetInForSearch backend starting...');
 console.log('📡 API Keys configured:', apiKeys.length);
-console.log('🔑 API Key previews:', apiKeys.map(key => key ? `${key.substring(0, 8)}...` : 'null'));
 
-// HARDCORE: Test all possible Perplexity models
-const PERPLEXITY_MODELS = [
-  'llama-3.1-sonar-small-128k-online',
-  'llama-3.1-sonar-large-128k-online', 
-  'llama-3.1-sonar-huge-128k-online',
-  'sonar-small-online',
-  'sonar-medium-online', 
-  'sonar-large-online',
-  'sonar',
-  'llama-3.1-8b-instruct',
-  'llama-3.1-70b-instruct',
-  'llama-3-8b-instruct',
-  'llama-3-70b-instruct'
+// ✅ FINAL: ACTUAL current valid Perplexity model names (August 2025)
+const CURRENT_PERPLEXITY_MODELS = [
+  // PRIMARY MODELS (Most likely to work)
+  'sonar',                    // ✅ Lightweight, cost-effective search model
+  'sonar-pro',               // ✅ Advanced search with complex queries
+  'sonar-reasoning',         // ✅ Chain-of-thought reasoning model
+  
+  // ALTERNATIVE MODELS
+  'sonar-reasoning-pro',     // ✅ Advanced reasoning model
+  'sonar-deep-research',     // ✅ Deep research model
+  
+  // FALLBACK MODELS (if search models fail)
+  'r1-1776',                 // ✅ DeepSeek R1 based model
+  'llama-3.1-70b-instruct',  // ✅ Instruct model fallback
+  'llama-3.1-8b-instruct'    // ✅ Smaller instruct model
 ];
 
-// HARDCORE: Test single API key with specific model
+console.log('🤖 Available models:', CURRENT_PERPLEXITY_MODELS);
+
+// BULLETPROOF: Test single API key with specific model
 async function testSingleAPIKey(apiKey, model, prompt = 'Hello') {
   const url = 'https://api.perplexity.ai/chat/completions';
   
@@ -55,12 +58,12 @@ async function testSingleAPIKey(apiKey, model, prompt = 'Hello') {
         { role: 'system', content: 'Be precise and concise.' },
         { role: 'user', content: prompt }
       ],
-      max_tokens: 100,
+      max_tokens: 4000,
       temperature: 0.2,
       stream: false
     };
 
-    console.log('📤 Test request payload:', JSON.stringify(requestData, null, 2));
+    console.log('📤 Request payload:', JSON.stringify(requestData, null, 2));
     
     const resp = await axios.post(url, requestData, {
       headers: {
@@ -68,11 +71,19 @@ async function testSingleAPIKey(apiKey, model, prompt = 'Hello') {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      timeout: 15000,
+      timeout: 30000,
     });
 
     console.log(`✅ SUCCESS: Key ${apiKey.substring(0, 8)}... with model ${model}`);
-    return { success: true, data: resp.data, model, keyPreview: `${apiKey.substring(0, 8)}...` };
+    console.log(`📦 Response preview:`, resp.data.choices?.[0]?.message?.content?.substring(0, 100) + '...');
+    
+    return { 
+      success: true, 
+      data: resp.data, 
+      model, 
+      keyPreview: `${apiKey.substring(0, 8)}...`,
+      responseLength: resp.data.choices?.[0]?.message?.content?.length || 0
+    };
 
   } catch (err) {
     const status = err.response ? err.response.status : 500;
@@ -80,7 +91,7 @@ async function testSingleAPIKey(apiKey, model, prompt = 'Hello') {
     
     console.error(`❌ FAILED: Key ${apiKey.substring(0, 8)}... with model ${model}:`, {
       status,
-      details: JSON.stringify(details, null, 2)
+      error: details?.error || details?.message || 'Unknown error'
     });
     
     return { 
@@ -93,23 +104,25 @@ async function testSingleAPIKey(apiKey, model, prompt = 'Hello') {
   }
 }
 
-// HARDCORE: Find working API key and model combination
-async function findWorkingConfiguration(prompt = 'Hello') {
-  console.log('🔍 HARDCORE: Finding working API key + model combination...');
+// BULLETPROOF: Find working API key and model combination
+async function findWorkingConfiguration(prompt) {
+  console.log('🔍 BULLETPROOF: Finding working API key + model combination...');
+  console.log(`📝 Prompt: "${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}"`);
   
   for (const apiKey of apiKeys) {
     console.log(`🔑 Testing API Key: ${apiKey.substring(0, 8)}...`);
     
-    for (const model of PERPLEXITY_MODELS) {
+    for (const model of CURRENT_PERPLEXITY_MODELS) {
       const result = await testSingleAPIKey(apiKey, model, prompt);
       
       if (result.success) {
         console.log(`🎯 FOUND WORKING COMBO: ${result.keyPreview} + ${result.model}`);
+        console.log(`📏 Response length: ${result.responseLength} characters`);
         return result;
       }
       
       // Small delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
   }
   
@@ -117,20 +130,25 @@ async function findWorkingConfiguration(prompt = 'Hello') {
   return null;
 }
 
-// BULLETPROOF: Call Perplexity with automatic model/key detection
+// BULLETPROOF: Call Perplexity with automatic detection
 async function callPerplexityBulletproof(prompt, useOnline = true) {
   console.log('🛡️ BULLETPROOF: Starting Perplexity call...');
-  console.log('📝 Prompt:', prompt);
+  console.log('📝 Full prompt:', prompt);
   console.log('🌐 Online mode:', useOnline);
   
-  // Try to find working configuration
+  // Find working configuration
   const workingConfig = await findWorkingConfiguration(prompt);
   
   if (!workingConfig) {
-    throw new Error('No working API key + model combination found');
+    throw new Error('No working API key + model combination found. All models failed.');
   }
   
-  console.log('✅ Using working configuration:', workingConfig);
+  console.log('✅ Using working configuration:', {
+    model: workingConfig.model,
+    keyPreview: workingConfig.keyPreview,
+    responseLength: workingConfig.responseLength
+  });
+  
   return workingConfig.data;
 }
 
@@ -138,8 +156,8 @@ async function callPerplexityBulletproof(prompt, useOnline = true) {
 app.get('/', (req, res) => {
   console.log('📍 Root endpoint accessed');
   res.json({
-    message: 'BULLETPROOF GetInForSearch Backend API',
-    version: '2.0.0-bulletproof',
+    message: 'FINAL BULLETPROOF GetInForSearch Backend API',
+    version: '3.0.0-final-bulletproof',
     status: 'running',
     timestamp: new Date().toISOString(),
     endpoints: {
@@ -150,7 +168,7 @@ app.get('/', (req, res) => {
       'key-test': '/api/key-test (POST)'
     },
     apiKeys: apiKeys.length,
-    availableModels: PERPLEXITY_MODELS.length
+    availableModels: CURRENT_PERPLEXITY_MODELS
   });
 });
 
@@ -160,16 +178,16 @@ app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    version: '2.0.0-bulletproof',
+    version: '3.0.0-final-bulletproof',
     availableKeys: apiKeys.length,
     keyPreviews: apiKeys.map(key => `${key.substring(0, 8)}...`),
-    availableModels: PERPLEXITY_MODELS,
+    currentModels: CURRENT_PERPLEXITY_MODELS,
     uptime: process.uptime(),
     memory: process.memoryUsage()
   });
 });
 
-// HARDCORE: Environment variable check endpoint
+// Environment variable check endpoint
 app.post('/api/env-check', (req, res) => {
   console.log('🔧 Environment check requested');
   
@@ -180,11 +198,12 @@ app.post('/api/env-check', (req, res) => {
       PERPLEXITY_API_KEY_1: process.env.PERPLEXITY_API_KEY_1 ? `${process.env.PERPLEXITY_API_KEY_1.substring(0, 12)}...` : 'NOT SET',
       PERPLEXITY_API_KEY_2: process.env.PERPLEXITY_API_KEY_2 ? `${process.env.PERPLEXITY_API_KEY_2.substring(0, 12)}...` : 'NOT SET'
     },
+    currentModels: CURRENT_PERPLEXITY_MODELS,
     timestamp: new Date().toISOString()
   });
 });
 
-// HARDCORE: Manual API key test endpoint
+// Manual API key test endpoint
 app.post('/api/key-test', async (req, res) => {
   console.log('🔑 Manual API key test requested');
   
@@ -197,13 +216,14 @@ app.post('/api/key-test', async (req, res) => {
   }
   
   try {
-    const workingConfig = await findWorkingConfiguration('test');
+    const workingConfig = await findWorkingConfiguration('test query');
     
     res.json({
       success: !!workingConfig,
       workingConfig,
       totalKeystested: apiKeys.length,
-      totalModelsPerKey: PERPLEXITY_MODELS.length,
+      totalModelsPerKey: CURRENT_PERPLEXITY_MODELS.length,
+      modelsUsed: CURRENT_PERPLEXITY_MODELS,
       timestamp: new Date().toISOString()
     });
     
@@ -216,7 +236,7 @@ app.post('/api/key-test', async (req, res) => {
   }
 });
 
-// HARDCORE: Debug search endpoint with specific model testing
+// Debug search endpoint
 app.post('/api/debug-search', async (req, res) => {
   console.log('🔬 Debug search requested');
   console.log('📝 Request body:', JSON.stringify(req.body, null, 2));
@@ -267,7 +287,8 @@ app.post('/api/debug-search', async (req, res) => {
         success: false,
         error: 'No working API key + model combination found',
         testedKeys: apiKeys.length,
-        testedModels: model ? 1 : PERPLEXITY_MODELS.length,
+        testedModels: model ? 1 : CURRENT_PERPLEXITY_MODELS.length,
+        modelsUsed: CURRENT_PERPLEXITY_MODELS,
         timestamp: new Date().toISOString()
       });
     }
@@ -288,17 +309,17 @@ app.head('/api/search', (req, res) => {
   res.status(200).end();
 });
 
-// BULLETPROOF: Main search endpoint
+// FINAL BULLETPROOF: Main search endpoint
 app.post('/api/search', async (req, res) => {
   const startTime = Date.now();
-  console.log(`🔍 [BULLETPROOF] Search request received at ${new Date().toISOString()}`);
-  console.log(`📝 [BULLETPROOF] Request body:`, JSON.stringify(req.body, null, 2));
+  console.log(`🔍 [FINAL BULLETPROOF] Search request received at ${new Date().toISOString()}`);
+  console.log(`📝 [FINAL BULLETPROOF] Request body:`, JSON.stringify(req.body, null, 2));
   
   const { prompt, online = true } = req.body || {};
   
   // Enhanced validation
   if (!prompt) {
-    console.error('❌ [BULLETPROOF] Missing prompt in request body');
+    console.error('❌ [FINAL BULLETPROOF] Missing prompt in request body');
     return res.status(400).json({ 
       error: 'Missing prompt',
       details: 'Request body must include a "prompt" field',
@@ -308,7 +329,7 @@ app.post('/api/search', async (req, res) => {
   }
   
   if (typeof prompt !== 'string') {
-    console.error('❌ [BULLETPROOF] Invalid prompt type:', typeof prompt);
+    console.error('❌ [FINAL BULLETPROOF] Invalid prompt type:', typeof prompt);
     return res.status(400).json({ 
       error: 'Invalid prompt type',
       details: 'Prompt must be a string',
@@ -318,7 +339,7 @@ app.post('/api/search', async (req, res) => {
   }
   
   if (prompt.trim().length === 0) {
-    console.error('❌ [BULLETPROOF] Empty prompt');
+    console.error('❌ [FINAL BULLETPROOF] Empty prompt');
     return res.status(400).json({ 
       error: 'Empty prompt',
       details: 'Prompt cannot be empty or only whitespace',
@@ -327,7 +348,7 @@ app.post('/api/search', async (req, res) => {
   }
 
   if (apiKeys.length === 0) {
-    console.error('❌ [BULLETPROOF] No API keys configured');
+    console.error('❌ [FINAL BULLETPROOF] No API keys configured');
     return res.status(500).json({ 
       error: 'No API keys configured',
       details: 'Server is missing Perplexity API keys',
@@ -336,11 +357,12 @@ app.post('/api/search', async (req, res) => {
   }
 
   try {
-    console.log(`🚀 [BULLETPROOF] Processing search: "${prompt.substring(0, 50)}${prompt.length > 50 ? '...' : ''}"`);
+    console.log(`🚀 [FINAL BULLETPROOF] Processing search: "${prompt.substring(0, 100)}${prompt.length > 100 ? '...' : ''}"`);
     const data = await callPerplexityBulletproof(prompt, online);
     const responseTime = Date.now() - startTime;
     
-    console.log(`✅ [BULLETPROOF] Search completed successfully in ${responseTime}ms`);
+    console.log(`✅ [FINAL BULLETPROOF] Search completed successfully in ${responseTime}ms`);
+    console.log(`📏 Response length: ${data.choices?.[0]?.message?.content?.length || 0} characters`);
     
     // Add response metadata
     const responseWithMeta = {
@@ -349,7 +371,8 @@ app.post('/api/search', async (req, res) => {
         responseTime,
         timestamp: new Date().toISOString(),
         online,
-        version: '2.0.0-bulletproof'
+        version: '3.0.0-final-bulletproof',
+        responseLength: data.choices?.[0]?.message?.content?.length || 0
       }
     };
     
@@ -357,16 +380,17 @@ app.post('/api/search', async (req, res) => {
 
   } catch (error) {
     const responseTime = Date.now() - startTime;
-    console.error(`❌ [BULLETPROOF] Search failed after ${responseTime}ms:`, error.message);
+    console.error(`❌ [FINAL BULLETPROOF] Search failed after ${responseTime}ms:`, error.message);
     
     return res.status(502).json({ 
       error: 'Search failed',
       details: error.message,
       responseTime,
       timestamp: new Date().toISOString(),
-      hint: 'Check API keys and Perplexity service status',
+      hint: 'All current Perplexity models failed. Check API keys or contact Perplexity support.',
       availableKeys: apiKeys.length,
-      keyPreviews: apiKeys.map(key => `${key.substring(0, 8)}...`)
+      keyPreviews: apiKeys.map(key => `${key.substring(0, 8)}...`),
+      modelsUsed: CURRENT_PERPLEXITY_MODELS
     });
   }
 });
@@ -382,7 +406,7 @@ app.options('*', (req, res) => {
 
 // Catch-all route for debugging
 app.all('*', (req, res) => {
-  console.log(`❓ [BULLETPROOF] Unhandled route: ${req.method} ${req.path}`);
+  console.log(`❓ [FINAL BULLETPROOF] Unhandled route: ${req.method} ${req.path}`);
   res.status(404).json({
     error: 'Route not found',
     method: req.method,
@@ -412,12 +436,12 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`✅ BULLETPROOF Server is running on port ${PORT}`);
+  console.log(`✅ FINAL BULLETPROOF Server is running on port ${PORT}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
   console.log(`🔍 Search endpoint: http://localhost:${PORT}/api/search`);
   console.log(`🔬 Debug endpoint: http://localhost:${PORT}/api/debug-search`);
   console.log(`📋 Available API keys: ${apiKeys.length}`);
-  console.log(`🤖 Available models: ${PERPLEXITY_MODELS.length}`);
+  console.log(`🤖 Current valid models: ${CURRENT_PERPLEXITY_MODELS.join(', ')}`);
   console.log(`🕐 Server started at: ${new Date().toISOString()}`);
 });
 
