@@ -1,357 +1,171 @@
-// optimized-server.js - Enhanced backend with performance optimizations
+// FIXED-server.js - Corrected Perplexity model names for 2025
+const express = require('express');
+const axios = require('axios');
+const cors = require('cors');
+const path = require('path');
+require('dotenv').config();
 
-const express = require('express')
-const axios = require('axios')
-const cors = require('cors')
-const path = require('path')
-const NodeCache = require('node-cache')
-require('dotenv').config()
-
-const app = express()
-const PORT = process.env.PORT || 3000
-
-// Enhanced caching system
-const cache = new NodeCache({
-  stdTTL: 3600, // 1 hour default
-  checkperiod: 120, // Check for expired keys every 2 minutes
-  maxKeys: 1000 // Limit cache size
-})
-
-// Performance monitoring
-const performanceMetrics = {
-  totalRequests: 0,
-  averageResponseTime: 0,
-  slowQueries: [],
-  cacheHitRate: 0,
-  cacheHits: 0,
-  cacheMisses: 0
-}
+const app = express();
+const PORT = process.env.PORT || 3000;
 
 // Collect API keys for failover
 const apiKeys = [
   process.env.PERPLEXITY_API_KEY_1,
   process.env.PERPLEXITY_API_KEY_2,
-].filter(Boolean)
+].filter(Boolean);
 
 // Middleware
-app.use(cors())
-app.use(express.json())
+app.use(cors());
+app.use(express.json());
 
-// Request logging and metrics
-app.use((req, res, next) => {
-  req.startTime = Date.now()
-  performanceMetrics.totalRequests++
-  next()
-})
+console.log('🚀 GetInForSearch backend starting...');
+console.log('📡 API Keys configured:', apiKeys.length);
 
-// Query Analysis Functions
-function analyzeQueryComplexity(prompt) {
-  const length = prompt.length
-  const hasQuestions = /\?/.test(prompt)
-  const hasMultipleTopics = prompt.split(/[,;]/).length > 1
-  const hasTechnicalTerms = /\b(algorithm|quantum|molecular|statistical|mathematical|technical|complex|advanced|detailed|comprehensive|analysis|research|study|investigation)\b/i.test(prompt)
-  const isCreativeTask = /\b(write|create|generate|story|poem|creative|imagine|design)\b/i.test(prompt)
+// Helper: call Perplexity with correct model names (2025)
+async function callPerplexity(prompt, useOnline = true) {
+  const url = 'https://api.perplexity.ai/chat/completions';
   
-  if (isCreativeTask) return 'creative'
-  if (length < 20 && !hasQuestions && !hasTechnicalTerms) return 'simple'
-  if (length > 100 || hasTechnicalTerms || hasMultipleTopics) return 'complex'
-  return 'medium'
-}
+  // ✅ UPDATED: Using current valid Perplexity model names (2025)
+  const model = useOnline 
+    ? 'sonar'           // ✅ Current online search model
+    : 'r1-1776';        // ✅ Current offline chat model
 
-function getOptimalConfiguration(complexity, prompt) {
-  const isNewsQuery = /\b(news|latest|recent|today|current|breaking)\b/i.test(prompt)
+  console.log(`🤖 Using model: ${model} (online: ${useOnline})`);
   
-  switch (complexity) {
-    case 'simple':
-      return {
-        model: 'llama-3.1-sonar-small-128k-online',
-        maxTokens: 1000,
-        temperature: 0.2,
-        cacheTTL: 7200, // 2 hours for simple queries
-        searchRecency: 'month'
-      }
-    case 'medium':
-      return {
-        model: 'llama-3.1-sonar-large-128k-online', 
-        maxTokens: 2000,
-        temperature: 0.3,
-        cacheTTL: isNewsQuery ? 300 : 3600, // 5 min for news, 1 hour for others
-        searchRecency: isNewsQuery ? 'day' : 'month'
-      }
-    case 'complex':
-      return {
-        model: 'llama-3.1-sonar-huge-128k-online',
-        maxTokens: 4000,
-        temperature: 0.4,
-        cacheTTL: 1800, // 30 minutes
-        searchRecency: 'week'
-      }
-    case 'creative':
-      return {
-        model: 'llama-3.1-70b-instruct',
-        maxTokens: 3000,
-        temperature: 0.7,
-        cacheTTL: 3600,
-        searchRecency: null // No web search for creative tasks
-      }
-    default:
-      return {
-        model: 'llama-3.1-sonar-large-128k-online',
-        maxTokens: 2000,
-        temperature: 0.3,
-        cacheTTL: 3600,
-        searchRecency: 'month'
-      }
-  }
-}
-
-// Enhanced cache key generation
-function generateCacheKey(prompt, config) {
-  const normalizedPrompt = prompt.toLowerCase().trim().replace(/\s+/g, ' ')
-  return `query:${normalizedPrompt}:${config.model}:${config.searchRecency}`
-}
-
-// Enhanced Perplexity API call with optimization
-async function callPerplexity(prompt, config, useStreaming = false) {
-  const url = 'https://api.perplexity.ai/chat/completions'
-  
-  const payload = {
-    model: config.model,
-    messages: [
-      { 
-        role: 'system', 
-        content: 'Provide accurate, concise, and well-structured answers. Use clear formatting and focus on the most relevant information.'
-      },
-      { role: 'user', content: prompt }
-    ],
-    max_tokens: config.maxTokens,
-    temperature: config.temperature,
-    stream: useStreaming
-  }
-
-  // Add search recency for online models
-  if (config.searchRecency && config.model.includes('online')) {
-    payload.search_recency_filter = config.searchRecency
-  }
-
   for (let i = 0; i < apiKeys.length; i++) {
-    const apiKey = apiKeys[i]
-    console.log(`[SERVER] Attempting request with API Key #${i+1}, Model: ${config.model}`)
-
+    const apiKey = apiKeys[i];
+    console.log(`[SERVER] Attempting request with API Key #${i+1}`);
+    
     try {
-      const resp = await axios.post(url, payload, {
+      const requestData = {
+        model,
+        messages: [
+          { role: 'system', content: 'Be precise and concise.' },
+          { role: 'user', content: prompt },
+        ],
+        max_tokens: 4000,
+        temperature: 0.2
+      };
+
+      console.log('📤 Request payload:', JSON.stringify(requestData, null, 2));
+      
+      const resp = await axios.post(url, requestData, {
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
-          'Accept': useStreaming ? 'text/event-stream' : 'application/json',
+          'Accept': 'application/json',
         },
         timeout: 30000,
-        responseType: useStreaming ? 'stream' : 'json'
-      })
+      });
 
-      console.log(`[SERVER] Success with API Key #${i+1}`)
-      return resp
+      console.log(`✅ [SERVER] Success with API Key #${i+1}`);
+      console.log(`📦 Response structure:`, Object.keys(resp.data));
+      return resp.data;
+
     } catch (err) {
-      const status = err.response ? err.response.status : 500
-      const details = err.response ? err.response.data : { message: err.message }
+      const status = err.response ? err.response.status : 500;
+      const details = err.response ? err.response.data : { message: err.message };
+      
+      console.error(`❌ [SERVER] Error with API Key #${i+1}:`, {
+        status,
+        details: JSON.stringify(details, null, 2)
+      });
       
       if (status === 429) {
-        console.warn(`[SERVER] API Key #${i+1} rate-limited. Trying next key...`)
-        continue
+        console.warn(`[SERVER] API Key #${i+1} rate-limited. Trying next key...`);
+        continue;
       }
       
-      console.error(`[SERVER] Error with API Key #${i+1}:`, JSON.stringify(details))
-      
-      if (i === apiKeys.length - 1) {
-        throw err
-      }
+      // If it's not a rate limit, log the error but continue to next key
+      console.error(`[SERVER] Non-rate-limit error with API Key #${i+1}, continuing...`);
     }
   }
-  
-  throw new Error('All available API keys are exhausted or failed.')
+
+  throw new Error('All available API keys failed or are exhausted.');
 }
-
-// Regular API endpoint
-app.post('/api/search', async (req, res) => {
-  const startTime = Date.now()
-  const { prompt, online = true } = req.body || {}
-  
-  console.log(`[SERVER] Received search request: "${prompt}"`)
-  
-  if (!prompt || typeof prompt !== 'string') {
-    return res.status(400).json({ error: 'Invalid prompt.' })
-  }
-  
-  if (apiKeys.length === 0) {
-    console.error('[SERVER] No Perplexity API keys found.')
-    return res.status(500).json({ error: 'No API keys configured.' })
-  }
-
-  try {
-    // Analyze query and get optimal configuration
-    const complexity = analyzeQueryComplexity(prompt)
-    const config = getOptimalConfiguration(complexity, prompt)
-    const cacheKey = generateCacheKey(prompt, config)
-    
-    console.log(`[SERVER] Query complexity: ${complexity}, Model: ${config.model}`)
-    
-    // Check cache first
-    const cachedResult = cache.get(cacheKey)
-    if (cachedResult) {
-      console.log('[SERVER] Cache hit!')
-      performanceMetrics.cacheHits++
-      
-      const responseTime = Date.now() - startTime
-      performanceMetrics.averageResponseTime = 
-        (performanceMetrics.averageResponseTime + responseTime) / 2
-      
-      return res.json(cachedResult)
-    }
-    
-    performanceMetrics.cacheMisses++
-    
-    // Make API call
-    const response = await callPerplexity(prompt, config)
-    const data = response.data
-    
-    // Cache the result
-    cache.set(cacheKey, data, config.cacheTTL)
-    
-    // Update performance metrics
-    const responseTime = Date.now() - startTime
-    performanceMetrics.averageResponseTime = 
-      (performanceMetrics.averageResponseTime + responseTime) / 2
-    
-    if (responseTime > 3000) {
-      performanceMetrics.slowQueries.push({
-        prompt: prompt.substring(0, 100),
-        responseTime,
-        complexity,
-        timestamp: new Date().toISOString()
-      })
-    }
-    
-    console.log(`[SERVER] Request completed in ${responseTime}ms`)
-    return res.json(data)
-    
-  } catch (error) {
-    const responseTime = Date.now() - startTime
-    const statusCode = error.response ? error.response.status : 502
-    const errorMessage = error.response ? error.response.data : { message: error.message }
-    
-    console.error('[SERVER] Error:', JSON.stringify(errorMessage, null, 2))
-    console.log(`[SERVER] Failed request took ${responseTime}ms`)
-    
-    return res.status(statusCode).json({ 
-      error: 'Failed to fetch from Perplexity API.', 
-      details: errorMessage,
-      responseTime
-    })
-  }
-})
-
-// Streaming endpoint for real-time responses
-app.post('/api/search/stream', async (req, res) => {
-  const startTime = Date.now()
-  const { prompt, online = true } = req.body || {}
-  
-  if (!prompt || typeof prompt !== 'string') {
-    return res.status(400).json({ error: 'Invalid prompt.' })
-  }
-  
-  // Set up SSE headers
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': '*'
-  })
-  
-  try {
-    const complexity = analyzeQueryComplexity(prompt)
-    const config = getOptimalConfiguration(complexity, prompt)
-    const cacheKey = generateCacheKey(prompt, config)
-    
-    // Check cache first
-    const cachedResult = cache.get(cacheKey)
-    if (cachedResult) {
-      res.write(`data: ${JSON.stringify(cachedResult)}\n\n`)
-      res.write('data: [DONE]\n\n')
-      res.end()
-      return
-    }
-    
-    // Stream from Perplexity
-    const response = await callPerplexity(prompt, config, true)
-    
-    let fullResponse = ''
-    response.data.on('data', chunk => {
-      const lines = chunk.toString().split('\n')
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6)
-          if (data === '[DONE]') {
-            // Cache the complete response
-            if (fullResponse) {
-              cache.set(cacheKey, { 
-                choices: [{ message: { content: fullResponse } }] 
-              }, config.cacheTTL)
-            }
-            res.write('data: [DONE]\n\n')
-            res.end()
-            return
-          }
-          
-          try {
-            const parsed = JSON.parse(data)
-            if (parsed.choices?.[0]?.delta?.content) {
-              fullResponse += parsed.choices[0].delta.content
-            }
-            res.write(`data: ${data}\n\n`)
-          } catch (e) {
-            // Invalid JSON, skip
-          }
-        }
-      }
-    })
-    
-    response.data.on('error', err => {
-      console.error('[SERVER] Streaming error:', err)
-      res.write(`data: ${JSON.stringify({ error: 'Stream error' })}\n\n`)
-      res.end()
-    })
-    
-  } catch (error) {
-    console.error('[SERVER] Streaming setup error:', error)
-    res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`)
-    res.end()
-  }
-})
-
-// Performance metrics endpoint
-app.get('/api/metrics', (req, res) => {
-  const cacheStats = cache.getStats()
-  performanceMetrics.cacheHitRate = 
-    (performanceMetrics.cacheHits / (performanceMetrics.cacheHits + performanceMetrics.cacheMisses)) * 100
-  
-  res.json({
-    ...performanceMetrics,
-    cacheStats,
-    uptime: process.uptime()
-  })
-})
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({
+  res.json({ 
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    version: '2.0.0-optimized'
-  })
-})
+    version: '1.1.0-fixed-models',
+    availableKeys: apiKeys.length,
+    models: {
+      online: 'sonar',
+      offline: 'r1-1776'
+    }
+  });
+});
+
+// API route - handles both old and new request formats
+app.post('/api/search', async (req, res) => {
+  const { prompt, online = true } = req.body || {};
+  
+  console.log(`[SERVER] Received search request for prompt: "${prompt}"`);
+  console.log(`[SERVER] Request body:`, JSON.stringify(req.body, null, 2));
+  
+  if (!prompt || typeof prompt !== 'string') {
+    console.error('[SERVER] Invalid prompt:', prompt);
+    return res.status(400).json({ error: 'Invalid prompt. Must be a non-empty string.' });
+  }
+
+  if (apiKeys.length === 0) {
+    console.error('[SERVER] No Perplexity API keys found in environment variables.');
+    return res.status(500).json({ error: 'No API keys configured.' });
+  }
+
+  try {
+    console.log(`[SERVER] Calling Perplexity API (online: ${online})...`);
+    const data = await callPerplexity(prompt, online);
+    
+    console.log(`✅ [SERVER] Successfully processed search request`);
+    return res.json(data);
+
+  } catch (error) {
+    const statusCode = error.response ? error.response.status : 502;
+    const errorMessage = error.response ? error.response.data : { message: error.message };
+    
+    console.error('[SERVER] Final Error Details:', JSON.stringify(errorMessage, null, 2));
+    
+    return res
+      .status(statusCode)
+      .json({ 
+        error: 'Failed to fetch from Perplexity API.', 
+        details: errorMessage,
+        hint: 'Check API keys and model availability'
+      });
+  }
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: 'GetInForSearch Backend API',
+    version: '1.1.0-fixed-models',
+    status: 'running',
+    endpoints: {
+      health: '/api/health',
+      search: '/api/search'
+    },
+    models: {
+      online: 'sonar (128k context)',
+      offline: 'r1-1776 (128k context)'
+    }
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 app.listen(PORT, () => {
-  console.log(`🚀 Optimized server running on port ${PORT}`)
-  console.log(`📊 Performance monitoring enabled`)
-  console.log(`⚡ Caching enabled with ${cache.options.maxKeys} max keys`)
-})
+  console.log(`✅ Server is running on port ${PORT}`);
+  console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
+  console.log(`🔍 Search endpoint: http://localhost:${PORT}/api/search`);
+  console.log(`📋 Available API keys: ${apiKeys.length}`);
+});
+
+module.exports = app;
