@@ -1,15 +1,55 @@
 {
-  "name": "ai-search-proxy-server",
-  "version": "1.0.0",
-  "description": "Secure proxy for an AI search API",
-  "main": "server.js",
+  "name": "getinforsearch-optimized",
+  "version": "2.0.0",
+  "description": "Optimized AI-powered search engine with enhanced performance",
+  "main": "optimized-server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node optimized-server.js",
+    "dev": "nodemon optimized-server.js",
+    "test": "npm run test:performance",
+    "test:performance": "node test/performance-test.js",
+    "monitor": "pm2 start optimized-server.js --watch --ignore-watch='node_modules' --name 'getinforsearch-optimized'",
+    "logs": "pm2 logs getinforsearch-optimized",
+    "restart": "pm2 restart getinforsearch-optimized",
+    "stop": "pm2 stop getinforsearch-optimized"
   },
+  "keywords": [
+    "ai",
+    "search",
+    "perplexity",
+    "optimization",
+    "performance",
+    "caching",
+    "streaming"
+  ],
+  "author": "GetInForSearch Team",
+  "license": "MIT",
   "dependencies": {
-    "axios": "^1.7.2",
+    "express": "^4.18.2",
+    "axios": "^1.6.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2"
-  }
+    "dotenv": "^16.3.1",
+    "node-cache": "^5.1.2",
+    "compression": "^1.7.4",
+    "helmet": "^7.1.0",
+    "rate-limiter-flexible": "^3.0.8"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "pm2": "^5.3.0",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/getinforsearch/optimized.git"
+  },
+  "bugs": {
+    "url": "https://github.com/getinforsearch/optimized/issues"
+  },
+  "homepage": "https://getinforsearch.com"
 }
